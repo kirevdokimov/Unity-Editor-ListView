@@ -1,31 +1,28 @@
-﻿
-using System;
-using System.Collections.Generic;
-using System.Linq;
+﻿using System.Collections.Generic;
 using UnityEditor;
 using UnityEditor.IMGUI.Controls;
 using UnityEngine;
-using UnityEngine.Assertions;
 
 namespace ListView {
 
-    public interface IListViewDataSource<T> where T : TreeViewItem {
+    public interface IListViewDelegate<T> where T : TreeViewItem {
         MultiColumnHeader Header { get; }
         List<TreeViewItem> GetData();
         List<TreeViewItem> GetSortedData(int columnIndex, bool isAscending);
-        void Gui(Rect rect, int columnIndex, T data);
+        void Draw(Rect rect, int columnIndex, T data, bool selected);
+        void OnItemClick(int id);
+        void OnContextClick();
     }
-
+    
+    
     public class ListView<T> : TreeView where T : TreeViewItem {
 
         const string sortedColumnIndexStateKey = "ListView_sortedColumnIndex";
-        public IListViewDataSource<T> dataSource;
-
-        //private TreeViewItem root;
+        public IListViewDelegate<T> viewDelegate;
 
 
-        public ListView(IListViewDataSource<T> dataSource) : this(new TreeViewState(), dataSource.Header){
-            this.dataSource = dataSource;
+        public ListView(IListViewDelegate<T> listViewViewDelegate) : this(new TreeViewState(), listViewViewDelegate.Header){
+            viewDelegate = listViewViewDelegate;
         }
 
         protected ListView(TreeViewState state, MultiColumnHeader header) : base(state, header){
@@ -38,7 +35,6 @@ namespace ListView {
             Reload();
 
             header.sortedColumnIndex = SessionState.GetInt(sortedColumnIndexStateKey, 1);
-            Debug.Log(".ctor2");
         }
 
         protected override TreeViewItem BuildRoot(){
@@ -48,11 +44,8 @@ namespace ListView {
         }
 
         public void Refresh(){
-            if (dataSource == null){
-                //Debug.LogError("Datasource required to refresh");
-                return;
-            }
-            rootItem.children = dataSource.GetData();
+            if (viewDelegate == null){ return; }
+            rootItem.children = viewDelegate.GetData();
             BuildRows(rootItem);
             Repaint();
         }
@@ -60,7 +53,7 @@ namespace ListView {
         private void SortingChanged(MultiColumnHeader header){
             SessionState.SetInt(sortedColumnIndexStateKey, multiColumnHeader.sortedColumnIndex);
             
-            if (dataSource == null){
+            if (viewDelegate == null){
                 rootItem.children = new List<TreeViewItem>();
                 BuildRows(rootItem);
                 return;
@@ -69,23 +62,32 @@ namespace ListView {
             var index = multiColumnHeader.sortedColumnIndex;
             var ascending = multiColumnHeader.IsSortedAscending(multiColumnHeader.sortedColumnIndex);
 
-            rootItem.children = dataSource.GetSortedData(index, ascending);
+            rootItem.children = viewDelegate.GetSortedData(index, ascending);
             BuildRows(rootItem);
         }
         
+        protected override bool CanMultiSelect(TreeViewItem item){
+            return false;
+        }
+
+        protected override void ContextClicked(){
+            viewDelegate?.OnContextClick();
+            base.ContextClicked();
+        }
+
+        protected override void SingleClickedItem(int id){
+            viewDelegate?.OnItemClick(id);
+            base.SingleClickedItem(id);
+        }
+       
         protected override void RowGUI(RowGUIArgs args){
             var item = args.item as T;
 
-            for (var visibleColumnIndex = 0;
-                visibleColumnIndex < args.GetNumVisibleColumns();
-                visibleColumnIndex++){
+            for (var visibleColumnIndex = 0; visibleColumnIndex < args.GetNumVisibleColumns(); visibleColumnIndex++){
                 var rect = args.GetCellRect(visibleColumnIndex);
                 var columnIndex = args.GetColumn(visibleColumnIndex);
-
-                var labelStyle = args.selected ? EditorStyles.whiteLabel : EditorStyles.label;
-                labelStyle.alignment = TextAnchor.MiddleLeft;
                 
-                dataSource.Gui(rect, columnIndex, item);
+                viewDelegate.Draw(rect, columnIndex, item, args.selected);
             }
         }
     }

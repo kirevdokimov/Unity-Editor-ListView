@@ -5,7 +5,9 @@ namespace ListView {
 	public class EditorWindowExample : EditorWindow {
 		
 		private static EditorWindowExample window;
-		static ListView<SimpleItem> listView;
+		static ListView<PersonItem> listView;
+
+		private SimpleListViewDelegate _delegate;
 		
 		[MenuItem("Window/EditorWindowExample")]
 		public static void OpenWindow(){
@@ -15,16 +17,21 @@ namespace ListView {
 
 		void OnEnable(){
 			window = this; // set singleton.
-			var source = new SimpleListViewDataSource();
-			listView = new ListView<SimpleItem>(source);
+			_delegate = new SimpleListViewDelegate();
+			listView = new ListView<PersonItem>(_delegate);
 			listView.Refresh();
 		}
 
+		// Flag to refresh list if dataSource changed
+		private bool refreshFlag;
+
 		private void OnGUI(){
-			
-			if (GUILayout.Button("Refresh")){
-				Debug.Log($"Refresh matter? {listView != null}");
+
+			ButtonsGUI();
+
+			if (refreshFlag){
 				listView?.Refresh();
+				refreshFlag = false;
 			}
 
 			var controlRect = EditorGUILayout.GetControlRect(
@@ -32,6 +39,24 @@ namespace ListView {
 				GUILayout.ExpandWidth(true));
 			
 			listView?.OnGUI(controlRect);
+		}
+
+		private void ButtonsGUI(){
+			GUILayout.BeginHorizontal();
+			if (GUILayout.Button("Add")){
+				_delegate.Add();
+				refreshFlag = true;
+			}
+			
+			if (GUILayout.Button("Remove")){
+				_delegate.Remove();
+				refreshFlag = true;
+			}
+			
+			if (GUILayout.Button("Refresh")){
+				refreshFlag = true;
+			}
+			GUILayout.EndHorizontal();
 		}
 	}
 }
