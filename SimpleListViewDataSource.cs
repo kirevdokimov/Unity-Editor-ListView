@@ -25,7 +25,7 @@ namespace ListView {
 		}));
 
 		public void Add(){
-			raw.Add(PersonGenerator.Generate());
+			raw.Add(PersonGenerator.Generate(raw.Count));
 		}
 		
 		public void Remove(){
@@ -85,6 +85,14 @@ namespace ListView {
 				default: 
 					throw new ArgumentOutOfRangeException(nameof(columnIndex), columnIndex, null);
 			}
+		}
+
+		public void OnItemClick(int id){
+			Debug.Log("Click on "+id);
+		}
+
+		public void OnContextClick(){
+			Debug.Log("ContextClick");
 		}
 	}
 }
